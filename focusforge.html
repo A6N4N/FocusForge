@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FocusForge</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #eee;
+      padding: 1rem;
+    }
+    header {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      color: #f1c40f;
+    }
+    nav {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 1rem;
+    }
+    button, .plus-btn {
+      background: #333;
+      color: #f1c40f;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-left: 0.3rem;
+    }
+    button:hover, .plus-btn:hover {
+      background-color: #444;
+    }
+    .screen {
+      display: none;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .active {
+      display: block;
+    }
+    .task, .daily, .reward {
+      background: #1e1e1e;
+      margin: 0.5rem 0;
+      padding: 1rem;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .reward {
+      flex-direction: column;
+      text-align: center;
+    }
+    .reward button {
+      margin-top: 0.5rem;
+    }
+    .plus-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 2rem;
+      padding: 0.5rem 1rem;
+    }
+    .greyed {
+      opacity: 0.5;
+    }
+    #coinDisplay {
+      text-align: center;
+      margin: 1rem 0;
+      font-size: 1.2rem;
+      color: #f1c40f;
+    }
+  </style>
+</head>
+<body>
+  <header>FocusForge</header>
+  <div id="coinDisplay">Coins: 0 🪙</div>
+  <nav>
+    <button onclick="showScreen('tasks')">Tasks</button>
+    <button onclick="showScreen('dailies')">Dailies</button>
+    <button onclick="showScreen('store')">Store</button>
+  </nav>
+
+  <section id="tasks" class="screen active"></section>
+  <section id="dailies" class="screen"></section>
+  <section id="store" class="screen"></section>
+
+  <button class="plus-btn" onclick="addItem()">+</button>
+
+  <script>
+    let coins = parseInt(localStorage.getItem('coins')) || 0;
+    let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+    let dailies = JSON.parse(localStorage.getItem('dailies')) || [];
+    let rewards = JSON.parse(localStorage.getItem('rewards')) || [];
+
+    function saveData() {
+      localStorage.setItem('coins', coins);
+      localStorage.setItem('tasks', JSON.stringify(tasks));
+      localStorage.setItem('dailies', JSON.stringify(dailies));
+      localStorage.setItem('rewards', JSON.stringify(rewards));
+    }
+
+    function updateUI() {
+      document.getElementById('coinDisplay').innerText = `Coins: ${coins} 🪙`;
+      document.getElementById('tasks').innerHTML = '';
+      document.getElementById('dailies').innerHTML = '';
+      document.getElementById('store').innerHTML = '';
+
+      tasks.forEach((task, index) => {
+        const div = document.createElement('div');
+        div.className = 'task';
+        div.innerHTML = `${task.title} <div><button onclick="completeTask(${index})">✔️</button><button onclick="deleteTask(${index})">🗑️</button></div>`;
+        document.getElementById('tasks').appendChild(div);
+      });
+
+      dailies.forEach((daily, index) => {
+        const div = document.createElement('div');
+        div.className = 'daily';
+        if (daily.completed) div.classList.add('greyed');
+        div.innerHTML = `${daily.title} <div><button onclick="completeDaily(${index})">✔️</button><button onclick="deleteDaily(${index})">🗑️</button></div>`;
+        document.getElementById('dailies').appendChild(div);
+      });
+
+      rewards.forEach((reward, index) => {
+        const div = document.createElement('div');
+        div.className = 'reward';
+        div.innerHTML = `<div>${reward.title}</div><div>${reward.coins} 🪙</div><div><button onclick="buyReward(${index})">Buy</button><button onclick="deleteReward(${index})">🗑️</button></div>`;
+        document.getElementById('store').appendChild(div);
+      });
+    }
+
+    function showScreen(screen) {
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById(screen).classList.add('active');
+    }
+
+    function addItem() {
+      const active = document.querySelector('.screen.active').id;
+      const title = prompt("Enter title:");
+      const value = parseInt(prompt("Enter coin value/cost:"), 10);
+      if (!title || isNaN(value)) return;
+
+      if (active === 'tasks') {
+        tasks.push({ title, coins: value });
+      } else if (active === 'dailies') {
+        dailies.push({ title, coins: value, completed: false });
+      } else if (active === 'store') {
+        rewards.push({ title, coins: value });
+      }
+
+      saveData();
+      updateUI();
+    }
+
+    function completeTask(index) {
+      coins += tasks[index].coins;
+      tasks.splice(index, 1);
+      saveData();
+      updateUI();
+    }
+
+    function deleteTask(index) {
+      if (confirm("Delete this task?")) {
+        tasks.splice(index, 1);
+        saveData();
+        updateUI();
+      }
+    }
+
+    function completeDaily(index) {
+      if (!dailies[index].completed) {
+        coins += dailies[index].coins;
+        dailies[index].completed = true;
+        saveData();
+        updateUI();
+      }
+    }
+
+    function deleteDaily(index) {
+      if (confirm("Delete this daily?")) {
+        dailies.splice(index, 1);
+        saveData();
+        updateUI();
+      }
+    }
+
+    function buyReward(index) {
+      const cost = rewards[index].coins;
+      if (coins >= cost) {
+        coins -= cost;
+        saveData();
+        updateUI();
+        alert("Reward purchased!");
+      } else {
+        alert("Not enough coins.");
+      }
+    }
+
+    function deleteReward(index) {
+      if (confirm("Delete this reward?")) {
+        rewards.splice(index, 1);
+        saveData();
+        updateUI();
+      }
+    }
+
+    // Reset dailies every 24 hours
+    const lastReset = localStorage.getItem('lastReset');
+    const now = new Date();
+    if (!lastReset || new Date(lastReset).getDate() !== now.getDate()) {
+      dailies.forEach(d => d.completed = false);
+      localStorage.setItem('lastReset', now.toISOString());
+      saveData();
+    }
+
+    updateUI();
+  </script>
+</body>
+</html>
